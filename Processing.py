@@ -61,38 +61,41 @@ def encode_label(labels, y):
             y[i] = 3
 
 
-def add_seq_len_feature(sequence, x):
+def add_seq_len_feature(sequence, X_df):
+    feature = np.zeros(len(sequences))
     for i in range(len(sequences)):
-        x[i] = len(sequences[i])
+        feature[i] = len(sequences[i])
+    X_df['Sequence length'] = pd.Series(feature)
 
-def all_amnio_acid(amino_acid, sequence, x):
+def all_amnio_acid(amino_acid, sequence, X_df):
     feature = np.zeros(len(sequences))
     for i in range(len(sequences)):
         current_seq = sequences[i].__str__()
         matches = all(a in current_seq for a in amino_acid)
         feature[i] = 1.0 if matches else 0.0
 
-    return np.column_stack((x,feature))
+    X_df['If contain all aa'] = pd.Series(feature)
 
-def amnio_acid_occurancy(amino_acid, sequence, x):
+def amnio_acid_occurancy(amino_acid, sequence, X_df):
     feature = np.zeros(len(sequences))
     for i in range(len(sequences)):
         current_seq = sequences[i].__str__()
         matches = sum(a in current_seq for a in amino_acid)
         feature[i] = matches
 
-    return np.column_stack((x,feature))
+    X_df['aa occurancy'] = pd.Series(feature)
 
 
-def add_isoelectric_point(amino_acid, sequence, x):
+def add_isoelectric_point(amino_acid, sequence, X_df):
     feature = np.zeros(len(sequences))
     for i in range(len(sequences)):
         current_seq = sequences[i].__str__()
         analysis = ProteinAnalysis(current_seq)
-        feature[i] = np.ceil(analysis.isoelectric_point())
-    return np.column_stack((x,feature))
+        feature[i] = analysis.isoelectric_point()
 
-def amino_acids_percent(amino_acid, sequence, x):
+    X_df['Isoelectric Point'] = pd.Series(feature)
+
+def amino_acids_percent(amino_acid, sequence, X_df):
     feature = np.zeros((len(sequences),20))
     for i in range(len(sequences)):
         current_seq = sequences[i].__str__()
@@ -103,65 +106,88 @@ def amino_acids_percent(amino_acid, sequence, x):
             feature[i][index] = precent_dict[aa] * 100
             index += 1
 
-    return np.column_stack((x,feature))
+    i = 0
+    for aa in amino_acid:
+        X_df[aa] = pd.Series(feature[:,i])
+        i +=1
 
-def add_aromaticity(amino_acid, sequence, x):
+def add_aromaticity(amino_acid, sequence, X_df):
     feature = np.zeros(len(sequences))
     for i in range(len(sequences)):
         current_seq = sequences[i].__str__()
         analysis = ProteinAnalysis(current_seq)
-        feature[i] = np.ceil(analysis.aromaticity() * 100)
-    return np.column_stack((x,feature))
+        feature[i] = analysis.aromaticity() * 100
 
-def add_instability_index(amino_acid, sequence, x):
+    X_df['Aromaticity'] = pd.Series(feature)
+
+def add_instability_index(amino_acid, sequence, X_df):
     feature = np.zeros(len(sequences))
     for i in range(len(sequences)):
         current_seq = sequences[i].__str__()
         analysis = ProteinAnalysis(current_seq)
         feature[i] = analysis.instability_index()
-    return np.column_stack((x,feature))
 
-def add_secondary_structure_fraction(amino_acid, sequence, x):
+    X_df['Instability index'] = pd.Series(feature)
+
+def add_secondary_structure_fraction(amino_acid, sequence, X_df):
     feature = np.zeros((len(sequences),3))
+    names = ['Helix', 'Turn', 'Sheet']
     for i in range(len(sequences)):
         current_seq = sequences[i].__str__()
         analysis = ProteinAnalysis(current_seq)
         # feature[i,:] = np.asarray(analysis.secondary_structure_fraction())
         feature[i,:] = np.argsort(np.asarray(analysis.secondary_structure_fraction()))
+    i = 0
+    for m in names:
+        X_df[m] = pd.Series(feature[:,i])
+        i +=1
 
-    return np.column_stack((x,feature))
+def add_molecular_weight(amino_acid, sequence, X_df):
+    feature = np.zeros(len(sequences))
+    for i in range(len(sequences)):
+        current_seq = sequences[i].__str__()
+        analysis = ProteinAnalysis(current_seq)
+        try:
+            if molecular_weight(current_seq, seq_type='protein'):
+                feature[i] = molecular_weight(current_seq, seq_type='protein')
+            else:
+                feature[i] = 0.0
+        except ValueError:
+            feature[i] = 0.0
 
+    X_df['Molecular weight'] = pd.Series(feature)
+
+def blind_test():
+    file_object  = open('Blind_test.txt', 'r')
+
+ok = blind_test()
 
 sequences, labels, Sequence_lookup_dict, Label_lookup_dict = read_data()
 number_of_sequence = len(sequences)
-X = np.zeros(number_of_sequence)
 y = np.zeros((number_of_sequence,1))
 encode_label(labels, y)
+X_df = pd.DataFrame()
 
-y_df = pd.DataFrame(y)
-y_df
+add_seq_len_feature(sequences, X_df)
+all_amnio_acid(amino_acid, sequences, X_df)
+amnio_acid_occurancy(amino_acid, sequences, X_df)
+add_isoelectric_point(amino_acid, sequences, X_df)
+amino_acids_percent(amino_acid, sequences, X_df)
+add_aromaticity(amino_acid, sequences, X_df)
+add_secondary_structure_fraction(amino_acid, sequences, X_df)
+add_molecular_weight(amino_acid, sequences, X_df)
 
-X_df = pd.DataFrame(X)
-X_df
-
-
-X = all_amnio_acid(amino_acid, sequences, X)
-X = amnio_acid_occurancy(amino_acid, sequences, X)
-X = add_isoelectric_point(amino_acid, sequences, X)
-X = amino_acids_percent(amino_acid, sequences, X)
-X = add_aromaticity(amino_acid, sequences, X)
-X = add_secondary_structure_fraction(amino_acid, sequences, X)
-X.shape
-X[:50]
+X_df.drop(['Molecular weight'], axis=1)
+X = X_df.values
 train_x, test_x, train_y, test_y = train_test_split(X, y, test_size=0.3, random_state=42)
+
+
+logit_score = Logistic_regression(train_x, train_y.ravel(), test_x, test_y.ravel())
+print('Logistic score', logit_score)
 
 score = MLP(train_x, train_y, test_x, test_y)
 print('Score', score)
-# # logit_score = Logistic_regression(train_x, train_y.ravel(), test_x, test_y.ravel())
-# # print('Logistic score', logit_score)
-#
-# Conv(train_x, train_y, test_x, test_y)
-#
+
 lsvm = linear_svm(train_x, train_y.ravel(), test_x, test_y.ravel())
 correct_prediction = np.equal(np.argmax(lsvm, 1), test_y)
 test_acc = np.mean(correct_prediction)

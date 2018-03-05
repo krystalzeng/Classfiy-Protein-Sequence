@@ -11,7 +11,6 @@ import keras
 from keras.models import Sequential
 from keras.layers import Dense, Dropout, Activation
 from keras.optimizers import SGD, Adam
-# from keras.layers import Embedding
 from keras.layers import Conv1D, GlobalAveragePooling1D, MaxPooling1D, LSTM
 
 def Logistic_regression(train_x, train_y, test_x, test_y):
