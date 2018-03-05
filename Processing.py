@@ -4,6 +4,7 @@ import numpy as np
 from Model import *
 from Bio import SeqIO
 from Bio.SeqUtils.ProtParam import *
+from Bio.SeqUtils.lcc import *
 from collections import defaultdict
 from sklearn import preprocessing
 from sklearn.preprocessing import OneHotEncoder
@@ -16,6 +17,13 @@ amino_acid = ['R', 'K', 'D', 'E', 'Q', 'N', 'H', 'S', 'T','Y', 'C', 'W', 'A', 'I
 def softmax(x):
     e_x = np.exp(x - np.max(x))
     return e_x / np.sum(e_x, axis=1, keepdims=True)
+
+def blind_test():
+    file_object  = open('Blind_test.txt', 'r')
+    blind_test_file = file_object.read()
+
+def drop_column(col_name, X_df):
+    X_df.drop([col_name], axis=1)
 
 def read_data():
     Label_lookup_dict = defaultdict()
@@ -149,7 +157,8 @@ def add_molecular_weight(amino_acid, sequence, X_df):
         analysis = ProteinAnalysis(current_seq)
         try:
             if molecular_weight(current_seq, seq_type='protein'):
-                feature[i] = molecular_weight(current_seq, seq_type='protein')
+                # feature[i] = molecular_weight(current_seq, seq_type='protein')
+                feature[i] = 1.0
             else:
                 feature[i] = 0.0
         except ValueError:
@@ -157,10 +166,14 @@ def add_molecular_weight(amino_acid, sequence, X_df):
 
     X_df['Molecular weight'] = pd.Series(feature)
 
-def blind_test():
-    file_object  = open('Blind_test.txt', 'r')
+def add_LCC(amino_acid, sequence, X_df):
+    feature = np.zeros(len(sequences))
+    for i in range(len(sequences)):
+        current_seq = sequences[i].__str__()
+        feature[i] = lcc_simp(current_seq)
 
-ok = blind_test()
+    X_df['LCC'] = pd.Series(feature)
+
 
 sequences, labels, Sequence_lookup_dict, Label_lookup_dict = read_data()
 number_of_sequence = len(sequences)
@@ -176,10 +189,10 @@ amino_acids_percent(amino_acid, sequences, X_df)
 add_aromaticity(amino_acid, sequences, X_df)
 add_secondary_structure_fraction(amino_acid, sequences, X_df)
 add_molecular_weight(amino_acid, sequences, X_df)
-
-X_df.drop(['Molecular weight'], axis=1)
+add_LCC(amino_acid, sequences, X_df)
+X_df
 X = X_df.values
-train_x, test_x, train_y, test_y = train_test_split(X, y, test_size=0.3, random_state=42)
+train_x, test_x, train_y, test_y = train_test_split(X, y, test_size=0.3, random_state=100)
 
 
 logit_score = Logistic_regression(train_x, train_y.ravel(), test_x, test_y.ravel())
@@ -192,12 +205,3 @@ lsvm = linear_svm(train_x, train_y.ravel(), test_x, test_y.ravel())
 correct_prediction = np.equal(np.argmax(lsvm, 1), test_y)
 test_acc = np.mean(correct_prediction)
 print('SVM acc', test_acc)
-
-
-# seq = sequences[0]
-# len(seq)
-# analysis = ProteinAnalysis(seq.__str__())
-# analysis.get_amino_acids_percent()
-# analysis.aromaticity()
-# analysis.secondary_structure_fraction()
-# lsvm_softmax = softmax(lsvm)
