@@ -11,6 +11,8 @@ from sklearn.preprocessing import OneHotEncoder
 from sklearn.cross_validation import train_test_split
 np.set_printoptions(threshold=np.inf)
 import pandas as pd
+from collections import defaultdict
+import matplotlib.pylab as plt
 
 amino_acid = ['R', 'K', 'D', 'E', 'Q', 'N', 'H', 'S', 'T','Y', 'C', 'W', 'A', 'I', 'L', 'M', 'F', 'V', 'P', 'G']
 
@@ -23,7 +25,7 @@ def blind_test():
     blind_test_file = file_object.read()
 
 def drop_column(col_name, X_df):
-    X_df.drop([col_name], axis=1)
+    return X_df.drop([col_name], axis=1)
 
 def read_data():
     Label_lookup_dict = defaultdict()
@@ -83,6 +85,23 @@ def all_amnio_acid(amino_acid, sequence, X_df):
         feature[i] = 1.0 if matches else 0.0
 
     X_df['If contain all aa'] = pd.Series(feature)
+
+def local_amnio_acid(amino_acid, sequence, X_df):
+    feature_front = np.zeros((len(sequences),20))
+    feature_end = np.zeros((len(sequences),20))
+    for i in range(len(sequences)):
+        current_seq = sequences[i].__str__()
+        index = 0
+        for aa in amino_acid:
+            feature_front[i,index] = current_seq[:50].count(aa)
+            feature_end[i,index] = current_seq[-50:].count(aa)
+            index += 1
+
+    i = 0
+    for aa in amino_acid:
+        X_df['Local first 50 '+ aa] = pd.Series(feature_front[:,i])
+        X_df['Local last 50 '+ aa] = pd.Series(feature_end[:,i])
+        i +=1
 
 def amnio_acid_occurancy(amino_acid, sequence, X_df):
     feature = np.zeros(len(sequences))
@@ -175,6 +194,8 @@ def add_LCC(amino_acid, sequence, X_df):
     X_df['LCC'] = pd.Series(feature)
 
 
+
+score_hisotry = defaultdict()
 sequences, labels, Sequence_lookup_dict, Label_lookup_dict = read_data()
 number_of_sequence = len(sequences)
 y = np.zeros((number_of_sequence,1))
@@ -182,26 +203,91 @@ encode_label(labels, y)
 X_df = pd.DataFrame()
 
 add_seq_len_feature(sequences, X_df)
-all_amnio_acid(amino_acid, sequences, X_df)
-amnio_acid_occurancy(amino_acid, sequences, X_df)
-add_isoelectric_point(amino_acid, sequences, X_df)
-amino_acids_percent(amino_acid, sequences, X_df)
-add_aromaticity(amino_acid, sequences, X_df)
-add_secondary_structure_fraction(amino_acid, sequences, X_df)
-add_molecular_weight(amino_acid, sequences, X_df)
-add_LCC(amino_acid, sequences, X_df)
-X_df
 X = X_df.values
 train_x, test_x, train_y, test_y = train_test_split(X, y, test_size=0.3, random_state=100)
-
-
 logit_score = Logistic_regression(train_x, train_y.ravel(), test_x, test_y.ravel())
 print('Logistic score', logit_score)
+score_hisotry['Sequence length'] = logit_score
 
-score = MLP(train_x, train_y, test_x, test_y)
-print('Score', score)
+# all_amnio_acid(amino_acid, sequences, X_df)
+# X = X_df.values
+# train_x, test_x, train_y, test_y = train_test_split(X, y, test_size=0.3, random_state=100)
+# logit_score = Logistic_regression(train_x, train_y.ravel(), test_x, test_y.ravel())
+# print('Logistic score', logit_score)
+# score_hisotry['If contain all aa'] = logit_score
 
-lsvm = linear_svm(train_x, train_y.ravel(), test_x, test_y.ravel())
-correct_prediction = np.equal(np.argmax(lsvm, 1), test_y)
-test_acc = np.mean(correct_prediction)
-print('SVM acc', test_acc)
+
+amnio_acid_occurancy(amino_acid, sequences, X_df)
+X = X_df.values
+train_x, test_x, train_y, test_y = train_test_split(X, y, test_size=0.3, random_state=100)
+logit_score = Logistic_regression(train_x, train_y.ravel(), test_x, test_y.ravel())
+print('Logistic score', logit_score)
+score_hisotry['aa occurancy'] = logit_score
+
+add_isoelectric_point(amino_acid, sequences, X_df)
+X = X_df.values
+train_x, test_x, train_y, test_y = train_test_split(X, y, test_size=0.3, random_state=100)
+logit_score = Logistic_regression(train_x, train_y.ravel(), test_x, test_y.ravel())
+print('Logistic score', logit_score)
+score_hisotry['Isoelectric Point'] = logit_score
+
+
+amino_acids_percent(amino_acid, sequences, X_df)
+X = X_df.values
+train_x, test_x, train_y, test_y = train_test_split(X, y, test_size=0.3, random_state=100)
+logit_score = Logistic_regression(train_x, train_y.ravel(), test_x, test_y.ravel())
+print('Logistic score', logit_score)
+score_hisotry['amino_acids_percent'] = logit_score
+
+
+add_aromaticity(amino_acid, sequences, X_df)
+X = X_df.values
+train_x, test_x, train_y, test_y = train_test_split(X, y, test_size=0.3, random_state=100)
+logit_score = Logistic_regression(train_x, train_y.ravel(), test_x, test_y.ravel())
+print('Logistic score', logit_score)
+score_hisotry['Aromaticity'] = logit_score
+
+
+add_secondary_structure_fraction(amino_acid, sequences, X_df)
+X = X_df.values
+train_x, test_x, train_y, test_y = train_test_split(X, y, test_size=0.3, random_state=100)
+logit_score = Logistic_regression(train_x, train_y.ravel(), test_x, test_y.ravel())
+print('Logistic score', logit_score)
+score_hisotry['secondary_structure_fraction'] = logit_score
+
+
+add_molecular_weight(amino_acid, sequences, X_df)
+X = X_df.values
+train_x, test_x, train_y, test_y = train_test_split(X, y, test_size=0.3, random_state=100)
+logit_score = Logistic_regression(train_x, train_y.ravel(), test_x, test_y.ravel())
+print('Logistic score', logit_score)
+score_hisotry['molecular_weight'] = logit_score
+
+
+add_LCC(amino_acid, sequences, X_df)
+X = X_df.values
+train_x, test_x, train_y, test_y = train_test_split(X, y, test_size=0.3, random_state=100)
+logit_score = Logistic_regression(train_x, train_y.ravel(), test_x, test_y.ravel())
+print('Logistic score', logit_score)
+score_hisotry['LCC'] = logit_score
+
+local_amnio_acid(amino_acid, sequences, X_df)
+X = X_df.values
+train_x, test_x, train_y, test_y = train_test_split(X, y, test_size=0.3, random_state=100)
+logit_score = Logistic_regression(train_x, train_y.ravel(), test_x, test_y.ravel())
+print('Logistic score', logit_score)
+score_hisotry['Local aa'] = logit_score
+X_df
+# score = MLP(train_x, train_y, test_x, test_y)
+# print('Score', score)
+#
+# lsvm = linear_svm(train_x, train_y.ravel(), test_x, test_y.ravel())
+# correct_prediction = np.equal(np.argmax(lsvm, 1), test_y)
+# test_acc = np.mean(correct_prediction)
+# print('SVM acc', test_acc)
+
+names = list(score_hisotry.keys())
+values = list(score_hisotry.values())
+plt.bar(range(len(score_hisotry)),values,tick_label=names)
+plt.savefig('bar.png')
+plt.show()
