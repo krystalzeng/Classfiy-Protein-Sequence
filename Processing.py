@@ -12,7 +12,13 @@ from sklearn.cross_validation import train_test_split
 np.set_printoptions(threshold=np.inf)
 import pandas as pd
 from collections import defaultdict
-import matplotlib.pylab as plt
+import matplotlib
+import matplotlib.pyplot as plt
+from matplotlib.ticker import MaxNLocator
+from matplotlib import cm
+from mpl_toolkits.mplot3d import Axes3D
+from pandas.tools.plotting import table
+from sklearn.metrics import confusion_matrix
 
 amino_acid = ['R', 'K', 'D', 'E', 'Q', 'N', 'H', 'S', 'T','Y', 'C', 'W', 'A', 'I', 'L', 'M', 'F', 'V', 'P', 'G']
 
@@ -278,16 +284,71 @@ logit_score = Logistic_regression(train_x, train_y.ravel(), test_x, test_y.ravel
 print('Logistic score', logit_score)
 score_hisotry['Local aa'] = logit_score
 X_df
-# score = MLP(train_x, train_y, test_x, test_y)
-# print('Score', score)
+
+
+random_baseline_model(train_x, train_y, test_x, test_y)
+random_score
+MLP_settings = [(1,32), (2,32), (3,32), (1,32), (2,64), (3,64), (1,128), (2,128), (3,128)]
+MLP_accs = []
+
+# for setting in MLP_settings:
+#     layers = setting[0]
+#     units = setting[1]
+#     score = MLP(train_x, train_y, test_x, test_y, units, layers)
+#     result = (layers + 2, units, score)
+#     MLP_accs.append(result)
+#     print('Score', score)
+# MLP_accs
 #
+# x_axis = []
+# y_axis = []
+# z_axis = []
+#
+# for acc in MLP_accs:
+#     x_axis.append(acc[0])
+#     y_axis.append(acc[1])
+#     z_axis.append(acc[2][1])
+#
+# fig = plt.figure()
+# ax = fig.add_subplot(111, projection='3d')
+#
+# surf = ax.plot_trisurf(np.asarray(x_axis), np.asarray(y_axis), np.asarray(z_axis), cmap=cm.jet, linewidth=0)
+# fig.colorbar(surf)
+#
+# ax.xaxis.set_major_locator(MaxNLocator(5))
+# ax.yaxis.set_major_locator(MaxNLocator(6))
+# ax.zaxis.set_major_locator(MaxNLocator(5))
+#
+# fig.tight_layout()
+#
+# plt.show()
+# fig.savefig('MLP_analysis.png')
+# z_axis
+# y_axis
+# tb = pd.DataFrame()
+# tb['Number of layers'] = pd.Series(x_axis)
+# tb['Number of units'] = pd.Series(y_axis)
+# tb['Test accuracy'] = pd.Series(z_axis)
+#
+# ax = plt.subplot(figsize=(12, 2), frame_on=False) # no visible frame
+# ax.xaxis.set_visible(False)  # hide the x axis
+# ax.yaxis.set_visible(False)  # hide the y axis
+#
+# table(ax, tb)  # where df is your data frame
+#
+# plt.savefig('mytable.png')
 # lsvm = linear_svm(train_x, train_y.ravel(), test_x, test_y.ravel())
 # correct_prediction = np.equal(np.argmax(lsvm, 1), test_y)
 # test_acc = np.mean(correct_prediction)
 # print('SVM acc', test_acc)
 
-names = list(score_hisotry.keys())
-values = list(score_hisotry.values())
-plt.bar(range(len(score_hisotry)),values,tick_label=names)
-plt.savefig('bar.png')
-plt.show()
+
+train_x, test_x, train_y, test_y = train_test_split(X, y, test_size=0.3, random_state=100)
+rf = random_forest(train_x, train_y.ravel(), test_x, test_y.ravel())
+print('Random forest acc', rf)
+
+# names = list(score_hisotry.keys())
+# values = list(score_hisotry.values())
+# plt.bar(range(len(score_hisotry)),values,tick_label=names)
+# plt.savefig('bar.png')
+# plt.show()
