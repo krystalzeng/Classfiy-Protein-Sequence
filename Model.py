@@ -17,36 +17,18 @@ from keras import regularizers
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.datasets import make_classification
 import matplotlib.pyplot as plt
-from sklearn.metrics import confusion_matrix
+from sklearn.metrics import confusion_matrix, f1_score, roc_curve, auc
+from sklearn.dummy import DummyClassifier
 import itertools
+from sklearn.model_selection import cross_val_score
+from sklearn.model_selection import KFold
+from sklearn.svm import LinearSVC
 
-def Logistic_regression(train_x, train_y, test_x, test_y):
-    LogisticReg = linear_model.LogisticRegression()
-    LogisticReg.fit(train_x, train_y)
-    test_acc = LogisticReg.score(test_x, test_y)
-    predicted_y = LogisticReg.predict(test_x)
-
-
-    cnf_matrix = confusion_matrix(test_y, predicted_y)
-    np.set_printoptions(precision=2)
-    class_names = ['cyto', 'mito', 'nucleus', 'secreted']
-
-    # Plot non-normalized confusion matrix
-    fig = plt.figure()
-    plot_confusion_matrix(cnf_matrix, classes=class_names,
-                          title='Confusion matrix, without normalization')
-
-
-    # Plot normalized confusion matrix
-    normalized_fig = plt.figure()
-    plot_confusion_matrix(cnf_matrix, classes=class_names, normalize=True,
-                          title='Normalized confusion matrix')
-
-    plt.show()
-    fig.savefig('Logistic_Regression_unnormalized.png')
-    normalized_fig.savefig('Logistic_Regression_normalized.png')
-
-    return test_acc
+def Logistic_regression(X, y, train = False):
+    lr = linear_model.LogisticRegression()
+    if train:
+        lr.fit(X,y.ravel())
+    return lr
 
 def MLP(train_x, train_y, test_x, test_y, hidden_units = 64, number_of_layers = 1):
     train_y_one_hot = keras.utils.to_categorical(train_y, num_classes=4)
@@ -72,68 +54,52 @@ def MLP(train_x, train_y, test_x, test_y, hidden_units = 64, number_of_layers = 
               batch_size=batch_size)
     score = model.evaluate(test_x, test_y_one_hot, batch_size=batch_size)
 
-    # predicted_y = model.predict(test_x)
-    # cnf_matrix = confusion_matrix(test_y, predicted_y)
-
     return score
 
-def Conv(train_x, train_y, test_x, test_y):
-    feature_size = train_x.shape[2]
-    output_size = train_y.shape[1]
-    seq_length = train_x.shape[1]
-    model = Sequential()
-    model.add(Conv1D(64, 3, activation='relu', input_shape=(seq_length, feature_size)))
-    model.add(MaxPooling1D(3))
-    model.add(Conv1D(128, 3, activation='relu'))
-    model.add(GlobalAveragePooling1D())
-    model.add(Dropout(0.5))
-    model.add(Dense(output_size, activation='softmax'))
+def test_MLP(X, y):
+    MLP_settings = [(1,32), (2,32), (3,32), (1,64), (2,64), (3,64), (1,128), (2,128), (3,128)]
+    MLP_accs = []
 
-    model.compile(loss='binary_crossentropy',
-                  optimizer='adam',
-                  metrics=['accuracy'])
+    for setting in MLP_settings:
+        layers = setting[0]
+        units = setting[1]
+        train_x, test_x, train_y, test_y = train_test_split(X, y, test_size=0.125)
+        score = MLP(train_x, train_y, test_x, test_y, units, layers)
+        result = (layers + 2, units, score)
+        MLP_accs.append(result)
+        print('Score', score)
+    return MLP_accs
 
-    model.fit(train_x, train_y, batch_size=128, epochs=10)
-    score = model.evaluate(test_x, test_y, batch_size=128)
+def kfold_cross_validation(model, X, y, model_name, splits = 8):
+    Test_accs = []
+    f1_scores = []
+    kf = KFold(n_splits=splits, shuffle=True)
+    cnf_matrices = np.zeros((4,4))
+    for train_index, test_index in kf.split(X):
+        X_train, X_test = X[train_index], X[test_index]
+        y_train, y_test = y[train_index], y[test_index]
+        current_model = model.fit(X_train, y_train.ravel())
+        predicted_y = current_model.predict(X_test)
+        test_acc = current_model.score(X_test, y_test.ravel())
+        Test_accs.append(test_acc)
+        cnf_matrices += confusion_matrix(y_test.ravel(), predicted_y)
+        f1_scores.append(f1_score(y_test.ravel(), predicted_y, average='weighted'))
 
-    return score
+    np.set_printoptions(precision=2)
+    class_names = ['cyto', 'mito', 'nucleus', 'secreted']
 
-def LSTM_model(train_x, train_y, test_x, test_y):
-    feature_size = train_x.shape[2]
-    output_size = 4
-    seq_length = train_x.shape[1]
-    train_y_one_hot = keras.utils.to_categorical(train_y, num_classes=4)
-    test_y_one_hot = keras.utils.to_categorical(test_y, num_classes=4)
+    # Plot normalized confusion matrix
+    normalized_fig = plt.figure(figsize=(8, 8))
+    plot_confusion_matrix(cnf_matrices, classes=class_names, normalize=True,
+                          title='Normalized confusion matrix')
 
-    model = Sequential()
-    model.add(LSTM(64,input_shape=(seq_length,feature_size),
-               return_sequences=True))
-    # model.add(LSTM(32, return_sequences=True))  # returns a sequence of vectors of dimension 32
-    model.add(LSTM(64))
-    model.add(Dense(output_size, activation='softmax'))
+    plt.show()
+    normalized_fig.savefig(model_name+'_normalized.png', bbox_inches="tight")
+    return Test_accs, f1_scores
 
-    model.compile(loss='categorical_crossentropy',
-                  optimizer='adam',
-                  metrics=['accuracy'])
 
-    model.fit(train_x, train_y_one_hot,
-              batch_size=128, epochs=10,
-              validation_data=(test_x, test_y_one_hot))
-
-    lstm_score = model.evaluate(test_x, test_y_one_hot, batch_size=128)
-
-    return lstm_score
-
-def linear_svm(train_x, train_y, test_x, test_y):
-    lin_clf = svm.SVC(decision_function_shape='ovo')
-    lin_clf.fit(train_x, train_y)
-    dec = lin_clf.decision_function(test_x)
-    return dec
-
-def knear(train_x, train_y, test_x, test_y):
-    nbrs = NearestNeighbors(n_neighbors=2, algorithm='ball_tree').fit(train_x)
-    distances, indices = nbrs.kneighbors(test_x)
-    return distances, indices
+def linear_svm():
+    return LinearSVC(random_state=0)
 
 def random_forest(train_x, train_y, test_x, test_y):
     clf = RandomForestClassifier(n_estimators=500, max_depth=2, random_state=0)
@@ -143,32 +109,33 @@ def random_forest(train_x, train_y, test_x, test_y):
     test_acc = np.mean(correct_prediction)
     return test_acc
 
-def random_baseline_model(train_x, train_y, test_x, test_y):
+def random_baseline_model(X, y, splits = 8):
+    Test_accs = []
+    f1_scores = []
+    kf = KFold(n_splits=splits, shuffle=True)
+    cnf_matrices = np.zeros((4,4))
+    for train_index, test_index in kf.split(X):
+        X_train, X_test = X[train_index], X[test_index]
+        y_train, y_test = y[train_index], y[test_index]
+        predicted_y = np.random.randint(4, size=len(y_test))
+        correct_prediction = np.equal(predicted_y, y_test)
+        test_acc = np.mean(correct_prediction)
+        Test_accs.append(test_acc)
+        cnf_matrices += confusion_matrix(y_test.ravel(), predicted_y)
+        f1_scores.append(f1_score(y_test.ravel(), predicted_y, average='weighted'))
 
-    predicted_y = np.zeros(len(test_y))
-    index = 0
-    for x in test_x:
-        predicted_y[index] = np.random.randint(4)
-
-    # correct_prediction = np.equal(predicted_y, test_y)
-    # test_acc = np.mean(correct_prediction)
-
-    # Compute confusion matrix
-    cnf_matrix = confusion_matrix(test_y, predicted_y)
     np.set_printoptions(precision=2)
-    class_names = ['0', '1', '2', '3']
-
-    # Plot non-normalized confusion matrix
-    plt.figure()
-    plot_confusion_matrix(cnf_matrix, classes=class_names,
-                          title='Confusion matrix, without normalization')
+    class_names = ['cyto', 'mito', 'nucleus', 'secreted']
 
     # Plot normalized confusion matrix
-    plt.figure()
-    plot_confusion_matrix(cnf_matrix, classes=class_names, normalize=True,
+    normalized_fig = plt.figure(figsize=(8, 8))
+    plot_confusion_matrix(cnf_matrices, classes=class_names, normalize=True,
                           title='Normalized confusion matrix')
 
     plt.show()
+    normalized_fig.savefig('uniform_normalized.png', bbox_inches="tight")
+
+    return Test_accs, f1_scores
 
 def plot_confusion_matrix(cm, classes,
                           normalize=False,

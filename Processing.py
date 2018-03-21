@@ -1,7 +1,6 @@
-% load_ext autoreload
-% autoreload 2
+# % load_ext autoreload
+# % autoreload 2
 import numpy as np
-from Model import *
 from Bio import SeqIO
 from Bio.SeqUtils.ProtParam import *
 from Bio.SeqUtils.lcc import *
@@ -20,15 +19,9 @@ from mpl_toolkits.mplot3d import Axes3D
 from pandas.tools.plotting import table
 from sklearn.metrics import confusion_matrix
 
-amino_acid = ['R', 'K', 'D', 'E', 'Q', 'N', 'H', 'S', 'T','Y', 'C', 'W', 'A', 'I', 'L', 'M', 'F', 'V', 'P', 'G']
-
 def softmax(x):
     e_x = np.exp(x - np.max(x))
     return e_x / np.sum(e_x, axis=1, keepdims=True)
-
-def blind_test():
-    file_object  = open('Blind_test.txt', 'r')
-    blind_test_file = file_object.read()
 
 def drop_column(col_name, X_df):
     return X_df.drop([col_name], axis=1)
@@ -38,6 +31,8 @@ def read_data():
     Sequence_lookup_dict = defaultdict()
     sequences = []
     labels = []
+    test_squences = []
+    test_squences_ids = []
 
     for seq_record in SeqIO.parse("cyto.fasta", "fasta"):
         sequences.append(seq_record.seq)
@@ -63,7 +58,11 @@ def read_data():
         Sequence_lookup_dict[seq_record.id] = seq_record.seq
         Label_lookup_dict[seq_record.id] = 'secreted'
 
-    return sequences, labels, Sequence_lookup_dict, Label_lookup_dict
+    for seq_record in SeqIO.parse("Blind_test.fasta", "fasta"):
+        test_squences.append(seq_record.seq)
+        test_squences_ids.append(seq_record.id)
+
+    return sequences, labels, Sequence_lookup_dict, Label_lookup_dict, test_squences, test_squences_ids
 
 def encode_label(labels, y):
     for i in range(len(labels)):
@@ -77,13 +76,13 @@ def encode_label(labels, y):
             y[i] = 3
 
 
-def add_seq_len_feature(sequence, X_df):
+def add_seq_len_feature(sequences, X_df):
     feature = np.zeros(len(sequences))
     for i in range(len(sequences)):
         feature[i] = len(sequences[i])
     X_df['Sequence length'] = pd.Series(feature)
 
-def all_amnio_acid(amino_acid, sequence, X_df):
+def all_amnio_acid(amino_acid, sequences, X_df):
     feature = np.zeros(len(sequences))
     for i in range(len(sequences)):
         current_seq = sequences[i].__str__()
@@ -92,7 +91,7 @@ def all_amnio_acid(amino_acid, sequence, X_df):
 
     X_df['If contain all aa'] = pd.Series(feature)
 
-def local_amnio_acid(amino_acid, sequence, X_df):
+def local_amnio_acid(amino_acid, sequences, X_df):
     feature_front = np.zeros((len(sequences),20))
     feature_end = np.zeros((len(sequences),20))
     for i in range(len(sequences)):
@@ -109,7 +108,7 @@ def local_amnio_acid(amino_acid, sequence, X_df):
         X_df['Local last 50 '+ aa] = pd.Series(feature_end[:,i])
         i +=1
 
-def amnio_acid_occurancy(amino_acid, sequence, X_df):
+def amnio_acid_occurancy(amino_acid, sequences, X_df):
     feature = np.zeros(len(sequences))
     for i in range(len(sequences)):
         current_seq = sequences[i].__str__()
@@ -119,7 +118,7 @@ def amnio_acid_occurancy(amino_acid, sequence, X_df):
     X_df['aa occurancy'] = pd.Series(feature)
 
 
-def add_isoelectric_point(amino_acid, sequence, X_df):
+def add_isoelectric_point(amino_acid, sequences, X_df):
     feature = np.zeros(len(sequences))
     for i in range(len(sequences)):
         current_seq = sequences[i].__str__()
@@ -128,7 +127,7 @@ def add_isoelectric_point(amino_acid, sequence, X_df):
 
     X_df['Isoelectric Point'] = pd.Series(feature)
 
-def amino_acids_percent(amino_acid, sequence, X_df):
+def amino_acids_percent(amino_acid, sequences, X_df):
     feature = np.zeros((len(sequences),20))
     for i in range(len(sequences)):
         current_seq = sequences[i].__str__()
@@ -144,7 +143,7 @@ def amino_acids_percent(amino_acid, sequence, X_df):
         X_df[aa] = pd.Series(feature[:,i])
         i +=1
 
-def add_aromaticity(amino_acid, sequence, X_df):
+def add_aromaticity(amino_acid, sequences, X_df):
     feature = np.zeros(len(sequences))
     for i in range(len(sequences)):
         current_seq = sequences[i].__str__()
@@ -153,7 +152,7 @@ def add_aromaticity(amino_acid, sequence, X_df):
 
     X_df['Aromaticity'] = pd.Series(feature)
 
-def add_instability_index(amino_acid, sequence, X_df):
+def add_instability_index(amino_acid, sequences, X_df):
     feature = np.zeros(len(sequences))
     for i in range(len(sequences)):
         current_seq = sequences[i].__str__()
@@ -162,7 +161,7 @@ def add_instability_index(amino_acid, sequence, X_df):
 
     X_df['Instability index'] = pd.Series(feature)
 
-def add_secondary_structure_fraction(amino_acid, sequence, X_df):
+def add_secondary_structure_fraction(amino_acid, sequences, X_df):
     feature = np.zeros((len(sequences),3))
     names = ['Helix', 'Turn', 'Sheet']
     for i in range(len(sequences)):
@@ -175,7 +174,7 @@ def add_secondary_structure_fraction(amino_acid, sequence, X_df):
         X_df[m] = pd.Series(feature[:,i])
         i +=1
 
-def add_molecular_weight(amino_acid, sequence, X_df):
+def add_molecular_weight(amino_acid, sequences, X_df):
     feature = np.zeros(len(sequences))
     for i in range(len(sequences)):
         current_seq = sequences[i].__str__()
@@ -191,7 +190,7 @@ def add_molecular_weight(amino_acid, sequence, X_df):
 
     X_df['Molecular weight'] = pd.Series(feature)
 
-def add_LCC(amino_acid, sequence, X_df):
+def add_LCC(amino_acid, sequences, X_df):
     feature = np.zeros(len(sequences))
     for i in range(len(sequences)):
         current_seq = sequences[i].__str__()
@@ -199,156 +198,128 @@ def add_LCC(amino_acid, sequence, X_df):
 
     X_df['LCC'] = pd.Series(feature)
 
+def add_local_beginning_pattern(amino_acid, sequences, X_df):
+    positions = 5
+    feature = np.zeros((len(sequences),positions))
+
+    for i in range(len(sequences)):
+        current_seq = sequences[i].__str__()
+        index = 0
+        for letter in current_seq[:positions]:
+            if letter != 'X' and letter != 'U':
+                feature[i][index] = amino_acid.index(letter)
+            else:
+                feature[i][index] = -1
+            index += 1
+
+    for j in range(positions):
+        X_df['Position'+str(j)] = pd.Series(feature[:,j])
+
+def add_local_ending_pattern(amino_acid, sequences, X_df):
+    positions = 5
+    feature = np.zeros((len(sequences),positions))
+
+    for i in range(len(sequences)):
+        current_seq = sequences[i].__str__()
+        index = 0
+        for letter in current_seq[-positions:]:
+            if letter != 'X' and letter != 'U':
+                feature[i][index] = amino_acid.index(letter)
+            else:
+                feature[i][index] = -1
+            index += 1
+
+    for j in range(positions):
+        X_df['Last Position'+str(j)] = pd.Series(feature[:,j])
+
+def add_number_of_ambiguous_aa(amino_acid, sequences, X_df):
+    feature = np.zeros(len(sequences))
+    for i in range(len(sequences)):
+        current_seq = sequences[i].__str__()
+        matches = sum(a not in amino_acid for a in current_seq)
+        feature[i] = matches
+
+    X_df['Ambiguous_aa'] = pd.Series(feature)
+
+def add_ambiguous_aa(amino_acid, sequences, X_df):
+    feature_x = np.zeros(len(sequences))
+    feature_u = np.zeros(len(sequences))
+    for i in range(len(sequences)):
+        current_seq = sequences[i].__str__()
+        feature_x[i] = sum(a == 'X' for a in current_seq)
+        feature_u[i] = sum(a == 'U' for a in current_seq)
+
+    X_df['Ambiguous_aa_U'] = pd.Series(feature_u)
+    X_df['Ambiguous_aa_X'] = pd.Series(feature_x)
 
 
-score_hisotry = defaultdict()
-sequences, labels, Sequence_lookup_dict, Label_lookup_dict = read_data()
-number_of_sequence = len(sequences)
-y = np.zeros((number_of_sequence,1))
-encode_label(labels, y)
-X_df = pd.DataFrame()
+def add_all_features(amino_acid, sequences, X_df):
 
-add_seq_len_feature(sequences, X_df)
-X = X_df.values
-train_x, test_x, train_y, test_y = train_test_split(X, y, test_size=0.3, random_state=100)
-logit_score = Logistic_regression(train_x, train_y.ravel(), test_x, test_y.ravel())
-print('Logistic score', logit_score)
-score_hisotry['Sequence length'] = logit_score
+    add_seq_len_feature(sequences, X_df)
 
-# all_amnio_acid(amino_acid, sequences, X_df)
+    amnio_acid_occurancy(amino_acid, sequences, X_df)
+
+    add_isoelectric_point(amino_acid, sequences, X_df)
+
+    amino_acids_percent(amino_acid, sequences, X_df)
+
+    add_aromaticity(amino_acid, sequences, X_df)
+
+    add_secondary_structure_fraction(amino_acid, sequences, X_df)
+
+    add_molecular_weight(amino_acid, sequences, X_df)
+
+    add_LCC(amino_acid, sequences, X_df)
+
+    local_amnio_acid(amino_acid, sequences, X_df)
+
+    add_local_beginning_pattern(amino_acid, sequences, X_df)
+
+    add_local_ending_pattern(amino_acid, sequences, X_df)
+
+    # return X_df, X_df.values
+
+
+# X_df.shape
 # X = X_df.values
-# train_x, test_x, train_y, test_y = train_test_split(X, y, test_size=0.3, random_state=100)
-# logit_score = Logistic_regression(train_x, train_y.ravel(), test_x, test_y.ravel())
-# print('Logistic score', logit_score)
-# score_hisotry['If contain all aa'] = logit_score
-
-
-amnio_acid_occurancy(amino_acid, sequences, X_df)
-X = X_df.values
-train_x, test_x, train_y, test_y = train_test_split(X, y, test_size=0.3, random_state=100)
-logit_score = Logistic_regression(train_x, train_y.ravel(), test_x, test_y.ravel())
-print('Logistic score', logit_score)
-score_hisotry['aa occurancy'] = logit_score
-
-add_isoelectric_point(amino_acid, sequences, X_df)
-X = X_df.values
-train_x, test_x, train_y, test_y = train_test_split(X, y, test_size=0.3, random_state=100)
-logit_score = Logistic_regression(train_x, train_y.ravel(), test_x, test_y.ravel())
-print('Logistic score', logit_score)
-score_hisotry['Isoelectric Point'] = logit_score
-
-
-amino_acids_percent(amino_acid, sequences, X_df)
-X = X_df.values
-train_x, test_x, train_y, test_y = train_test_split(X, y, test_size=0.3, random_state=100)
-logit_score = Logistic_regression(train_x, train_y.ravel(), test_x, test_y.ravel())
-print('Logistic score', logit_score)
-score_hisotry['amino_acids_percent'] = logit_score
-
-
-add_aromaticity(amino_acid, sequences, X_df)
-X = X_df.values
-train_x, test_x, train_y, test_y = train_test_split(X, y, test_size=0.3, random_state=100)
-logit_score = Logistic_regression(train_x, train_y.ravel(), test_x, test_y.ravel())
-print('Logistic score', logit_score)
-score_hisotry['Aromaticity'] = logit_score
-
-
-add_secondary_structure_fraction(amino_acid, sequences, X_df)
-X = X_df.values
-train_x, test_x, train_y, test_y = train_test_split(X, y, test_size=0.3, random_state=100)
-logit_score = Logistic_regression(train_x, train_y.ravel(), test_x, test_y.ravel())
-print('Logistic score', logit_score)
-score_hisotry['secondary_structure_fraction'] = logit_score
-
-
-add_molecular_weight(amino_acid, sequences, X_df)
-X = X_df.values
-train_x, test_x, train_y, test_y = train_test_split(X, y, test_size=0.3, random_state=100)
-logit_score = Logistic_regression(train_x, train_y.ravel(), test_x, test_y.ravel())
-print('Logistic score', logit_score)
-score_hisotry['molecular_weight'] = logit_score
-
-
-add_LCC(amino_acid, sequences, X_df)
-X = X_df.values
-train_x, test_x, train_y, test_y = train_test_split(X, y, test_size=0.3, random_state=100)
-logit_score = Logistic_regression(train_x, train_y.ravel(), test_x, test_y.ravel())
-print('Logistic score', logit_score)
-score_hisotry['LCC'] = logit_score
-
-local_amnio_acid(amino_acid, sequences, X_df)
-X = X_df.values
-train_x, test_x, train_y, test_y = train_test_split(X, y, test_size=0.3, random_state=100)
-logit_score = Logistic_regression(train_x, train_y.ravel(), test_x, test_y.ravel())
-print('Logistic score', logit_score)
-score_hisotry['Local aa'] = logit_score
-X_df
-
-
-random_baseline_model(train_x, train_y, test_x, test_y)
-random_score
-MLP_settings = [(1,32), (2,32), (3,32), (1,32), (2,64), (3,64), (1,128), (2,128), (3,128)]
-MLP_accs = []
-
-# for setting in MLP_settings:
-#     layers = setting[0]
-#     units = setting[1]
-#     score = MLP(train_x, train_y, test_x, test_y, units, layers)
-#     result = (layers + 2, units, score)
-#     MLP_accs.append(result)
-#     print('Score', score)
+# cl = Logistic_regression()
+# lr_accs, lr_f1 = kfold_cross_validation(cl, X, y, 'lr')
+# lr_accs
+# lr_f1
+# np.sum(lr_accs) / 8
+# np.sum(lr_f1) / 8
+#
+#
+# svm = linear_svm()
+# svm_accs, svm_f1 = kfold_cross_validation(svm, X, y, 'svm')
+# svm_accs
+# svm_f1
+# np.sum(svm_accs) / 8
+# np.sum(svm_f1) / 8
+#
+# unifrom_accs, uniform_f1 = random_baseline_model(X, y)
+# unifrom_accs
+# np.sum(uniform_f1)/8
+#
+# MLP_accs = test_MLP(X,y)
 # MLP_accs
 #
-# x_axis = []
-# y_axis = []
-# z_axis = []
+# sequences = "MESKGASSCRLLFCLLISATVFRPGLGWYTVNSAYGDTIIIPCRLDVPQNLMFGKWKYEK\
+# PDGSPVFIAFRSSTKKSVQYDDVPEYKDRLNLSENYTLSISNARISDEKRFVCMLVTEDN\
+# VFEAPTIVKVFKQPSKPEIVSKALFLETEQLKKLGDCISEDSYPDGNITWYRNGKVLHPL\
+# EGAVVIIFKKEMDPVTQLYTMTSTLEYKTTKADIQMPFTCSVTYYGPSGQKTIHSEQAVF\
+# DIYYPTEQVTIQVLPPKNAIKEGDNITLKCLGNGNPPPEEFLFYLPGQPEGIRSSNTYTL\
+# TDVRRNATGDYKCSLIDKKSMIASTAITVHYLDLSLNPSGEVTRQIGDALPVSCTISASR\
+# NATVVWMKDNIRLRSSPSFSSLHYQDAGNYVCETALQEVEGLKKRESLTILVEGKPQIKM\
+# TKKTDPSGLSKTIICHVEGFPKPAIQWTITGSGSVINQTEESPYINGRYYSKIIISPEEN\
+# VTLTCTAENQLERTVNSLNVSAISIPEHDEADEISDENREKVNDQAKLIVGIVVGLLLAA\
+# LVAGVVYWLYMKKSKTASKHVNKDLGNMEENKKLEENNHKTEA"
 #
-# for acc in MLP_accs:
-#     x_axis.append(acc[0])
-#     y_axis.append(acc[1])
-#     z_axis.append(acc[2][1])
-#
-# fig = plt.figure()
-# ax = fig.add_subplot(111, projection='3d')
-#
-# surf = ax.plot_trisurf(np.asarray(x_axis), np.asarray(y_axis), np.asarray(z_axis), cmap=cm.jet, linewidth=0)
-# fig.colorbar(surf)
-#
-# ax.xaxis.set_major_locator(MaxNLocator(5))
-# ax.yaxis.set_major_locator(MaxNLocator(6))
-# ax.zaxis.set_major_locator(MaxNLocator(5))
-#
-# fig.tight_layout()
-#
-# plt.show()
-# fig.savefig('MLP_analysis.png')
-# z_axis
-# y_axis
-# tb = pd.DataFrame()
-# tb['Number of layers'] = pd.Series(x_axis)
-# tb['Number of units'] = pd.Series(y_axis)
-# tb['Test accuracy'] = pd.Series(z_axis)
-#
-# ax = plt.subplot(figsize=(12, 2), frame_on=False) # no visible frame
-# ax.xaxis.set_visible(False)  # hide the x axis
-# ax.yaxis.set_visible(False)  # hide the y axis
-#
-# table(ax, tb)  # where df is your data frame
-#
-# plt.savefig('mytable.png')
-# lsvm = linear_svm(train_x, train_y.ravel(), test_x, test_y.ravel())
-# correct_prediction = np.equal(np.argmax(lsvm, 1), test_y)
-# test_acc = np.mean(correct_prediction)
-# print('SVM acc', test_acc)
-
-
-train_x, test_x, train_y, test_y = train_test_split(X, y, test_size=0.3, random_state=100)
-rf = random_forest(train_x, train_y.ravel(), test_x, test_y.ravel())
-print('Random forest acc', rf)
-
-# names = list(score_hisotry.keys())
-# values = list(score_hisotry.values())
-# plt.bar(range(len(score_hisotry)),values,tick_label=names)
-# plt.savefig('bar.png')
-# plt.show()
+# cl = Logistic_regression()
+# cl.predict(sequences)
+# f = open("Blind_test.txt")
+# blind_test_raw = f.readlines()
+# blind_test = defaultdict(str)
+# for lines in blind_test_raw:
+#     if lines[0] = '>':
+#         blind_test[lines]
