@@ -22,12 +22,21 @@ trained_lr = Logistic_regression(train_X, y)
 lr_accs, lr_f1 = kfold_cross_validation(trained_lr, train_X, y, 'lr')
 trained_lr = Logistic_regression(train_X, y, True)
 
+
+trained_rf = random_forest(train_X, y)
+rf_accs, rf_f1 = kfold_cross_validation(trained_rf, train_X, y, 'rf')
+rf_f1
+print(np.mean(rf_f1))
+rf_f1
+trained_lr = Logistic_regression(train_X, y, True)
+
+
 test_X_df = pd.DataFrame()
 
 add_all_features(amino_acid, test_sequences, test_X_df)
 
-test_X_df
-predicted_p = trained_lr.predict_proba(test_X_df.values)
+test_X = test_X_df.values
+predicted_p = trained_lr.predict_proba(test_X)
 
 
 test_labels = defaultdict()
@@ -44,7 +53,6 @@ try:
         f.write(str(int(np.amax(predicted_p[i])*100)))
         f.write('%\n')
     f.close()
-
 except IOError as e:
     print("I/O error({0}): {1}".format(e.errno, e.strerror))
 except ValueError:

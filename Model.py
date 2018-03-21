@@ -25,10 +25,16 @@ from sklearn.model_selection import KFold
 from sklearn.svm import LinearSVC
 
 def Logistic_regression(X, y, train = False):
-    lr = linear_model.LogisticRegression()
+    lr = linear_model.LogisticRegression(C=0.2)
     if train:
         lr.fit(X,y.ravel())
     return lr
+
+def random_forest(X, y, train = False):
+    clf = RandomForestClassifier(n_estimators=100, random_state=0)
+    if train:
+        clf.fit(X,y.ravel())
+    return clf
 
 def MLP(train_x, train_y, test_x, test_y, hidden_units = 64, number_of_layers = 1):
     train_y_one_hot = keras.utils.to_categorical(train_y, num_classes=4)
@@ -100,14 +106,6 @@ def kfold_cross_validation(model, X, y, model_name, splits = 8):
 
 def linear_svm():
     return LinearSVC(random_state=0)
-
-def random_forest(train_x, train_y, test_x, test_y):
-    clf = RandomForestClassifier(n_estimators=500, max_depth=2, random_state=0)
-    clf.fit(train_x, train_y)
-    predictions = clf.predict(test_x)
-    correct_prediction = np.equal(predictions, test_y)
-    test_acc = np.mean(correct_prediction)
-    return test_acc
 
 def random_baseline_model(X, y, splits = 8):
     Test_accs = []
