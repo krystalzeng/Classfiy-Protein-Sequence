@@ -29,9 +29,26 @@ add_all_features(amino_acid, test_sequences, test_X_df)
 test_X_df
 predicted_p = trained_lr.predict_proba(test_X_df.values)
 
-f = open('helloworld.txt','a')
-f.write('\n' + 'hello world')
-f.close()
 
-for i, id in enumerate(test_sequence_ids):
-    print(id, np.argmax(predicted_p[i]), ' prob: ', int(np.amax(predicted_p[i])*100), '%')
+test_labels = defaultdict()
+test_labels[0] = 'cyto'
+test_labels[1] = 'mito'
+test_labels[2] = 'nucleus'
+test_labels[3] = 'secreted'
+
+try:
+    f = open('result.txt','w+')
+    for i, id in enumerate(test_sequence_ids):
+        f.write(id+'  ')
+        f.write(test_labels[int(np.argmax(predicted_p[i]))]+'  ')
+        f.write(str(int(np.amax(predicted_p[i])*100)))
+        f.write('%\n')
+    f.close()
+
+except IOError as e:
+    print("I/O error({0}): {1}".format(e.errno, e.strerror))
+except ValueError:
+    print("Could not convert data to an integer.")
+except:
+    print("Unexpected error:", sys.exc_info()[0])
+    raise
