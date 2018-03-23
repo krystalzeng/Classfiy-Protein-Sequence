@@ -97,7 +97,7 @@ def kfold_cross_validation(model, X, y, model_name, splits = 8):
     # Plot normalized confusion matrix
     normalized_fig = plt.figure(figsize=(8, 8))
     plot_confusion_matrix(cnf_matrices, classes=class_names, normalize=True,
-                          title='Normalized confusion matrix')
+                          title=model_name+' normalized confusion matrix')
 
     plt.show()
     normalized_fig.savefig(model_name+'_normalized.png', bbox_inches="tight")

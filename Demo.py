@@ -1,5 +1,5 @@
-% load_ext autoreload
-% autoreload 2
+# % load_ext autoreload
+# % autoreload 2
 import numpy as np
 from Processing import *
 from Model import *
@@ -15,30 +15,39 @@ y = np.zeros((number_of_sequence,1))
 encode_label(labels, y)
 
 
+# Feature preparation
 train_X_df = pd.DataFrame()
 add_all_features(amino_acid, sequences, train_X_df)
 train_X = train_X_df.values
+
+# Implement uniform model
+random_baseline_model(train_X, y)
+
+# Neural Network
+MLP_accs = test_MLP(train_X,y)
+
+# Logistic Regression
 trained_lr = Logistic_regression(train_X, y)
+#Compute test accuracy and f1 scores using 8-fold cross validation
 lr_accs, lr_f1 = kfold_cross_validation(trained_lr, train_X, y, 'lr')
 trained_lr = Logistic_regression(train_X, y, True)
 
 
+# Random Forest
 trained_rf = random_forest(train_X, y)
+#Compute test accuracy and f1 scores using 8-fold cross validation
 rf_accs, rf_f1 = kfold_cross_validation(trained_rf, train_X, y, 'rf')
-rf_f1
-print(np.mean(rf_f1))
-rf_f1
-trained_lr = Logistic_regression(train_X, y, True)
+trained_rf = random_forest(train_X, y, True)
 
 
+# Test the model on the blind test set
 test_X_df = pd.DataFrame()
-
 add_all_features(amino_acid, test_sequences, test_X_df)
-
 test_X = test_X_df.values
-predicted_p = trained_lr.predict_proba(test_X)
+predicted_p = trained_rf.predict_proba(test_X)
 
 
+# Save the prediction results in 'result.txt'
 test_labels = defaultdict()
 test_labels[0] = 'cyto'
 test_labels[1] = 'mito'
