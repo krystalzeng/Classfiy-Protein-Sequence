@@ -25,11 +25,7 @@ Demo.py is the main demo file. This file shall save the confusion matrix for Uni
 
 ## Author
 
-* **Yuxin Zeng** - *Classfiy Protein Sequence* - [PurpleBooth](https://github.com/krystalzeng/Classfiy-Protein-Sequence)
-
-## License
-
-This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md) file for details
+* **Yuxin Zeng** - *Classfiy Protein Sequence* - [Classfiy Protein Sequence](https://github.com/krystalzeng/Classfiy-Protein-Sequence)
 
 ## Acknowledgments
 
